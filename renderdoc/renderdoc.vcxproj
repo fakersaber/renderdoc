@@ -23,7 +23,8 @@
     <ProjectGuid>{E2B46D67-90E2-40B6-9597-72930E7845E5}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>renderdoc</RootNamespace>
-    <ProjectName>renderdoc</ProjectName>
+    <ProjectName>Leesanghyeok</ProjectName>
+    <WindowsTargetPlatformVersion>$(RenderDocLatestWin10SDKVersion)</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(SolutionDir)\util\WindowsSDKTarget.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -31,7 +32,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
     <LinkIncremental>false</LinkIncremental>
@@ -71,7 +72,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)renderdoc\;$(SolutionDir)renderdoc\3rdparty\</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RDOC_DLL_FILE=$(ProjectName);RENDERDOC_EXPORTS;RENDERDOC_PLATFORM_WIN32;WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <DisableSpecificWarnings>4100</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>precompiled.h</PrecompiledHeaderFile>
@@ -105,6 +106,7 @@
       <AdditionalDependencies>$(SolutionDir)$(Platform)\$(Configuration)\breakpad_common.lib;$(SolutionDir)$(Platform)\$(Configuration)\crash_generation_client.lib;$(SolutionDir)$(Platform)\$(Configuration)\exception_handler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -324,7 +326,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\buffer.c">
+    <ClCompile Include="3rdparty\minihook\src\buffer.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</CompileAsManaged>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</TreatWarningAsError>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</SDLCheck>
@@ -347,8 +349,9 @@
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
       </ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\hde\hde32.c">
+    <ClCompile Include="3rdparty\minihook\src\hde\hde32.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</CompileAsManaged>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</TreatWarningAsError>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</SDLCheck>
@@ -371,8 +374,9 @@
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</CompileAsManaged>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</TreatWarningAsError>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</SDLCheck>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\hde\hde64.c">
+    <ClCompile Include="3rdparty\minihook\src\hde\hde64.cpp">
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">
@@ -395,8 +399,9 @@
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</SDLCheck>
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</CompileAsManaged>
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</CompileAsManaged>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\hook.c">
+    <ClCompile Include="3rdparty\minihook\src\hook.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</CompileAsManaged>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</TreatWarningAsError>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</SDLCheck>
@@ -419,8 +424,9 @@
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
       </ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\trampoline.c">
+    <ClCompile Include="3rdparty\minihook\src\trampoline.cpp">
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</TreatWarningAsError>
       <SDLCheck Condition="'$(Configuration)|$(Platform)'=='Development|Win32'">false</SDLCheck>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</TreatWarningAsError>
@@ -441,6 +447,7 @@
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
       </ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="3rdparty\miniz\miniz.c">
       <DisableSpecificWarnings>4100;4127</DisableSpecificWarnings>
@@ -475,6 +482,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="3rdparty\tinyexr\tinyexr.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

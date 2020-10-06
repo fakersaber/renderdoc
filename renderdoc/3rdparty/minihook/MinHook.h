@@ -87,9 +87,9 @@ MH_STATUS;
 // MH_QueueEnableHook or MH_QueueDisableHook.
 #define MH_ALL_HOOKS NULL
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
 
     // Initialize the MinHook library. You must call this function EXACTLY ONCE
     // at the beginning of your program.
@@ -180,7 +180,7 @@ extern "C" {
     // Translates the MH_STATUS to its name as a string.
     const char * WINAPI MH_StatusToString(MH_STATUS status);
 
-#ifdef __cplusplus
-}
-#endif
+//#ifdef __cplusplus
+//}
+//#endif
 

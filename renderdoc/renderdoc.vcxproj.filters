@@ -986,19 +986,19 @@
     <ClCompile Include="3rdparty\compressonator\BC7_Encode_Kernel.cpp">
       <Filter>3rdparty\compressonator</Filter>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\buffer.c">
-      <Filter>3rdparty\minihook\src</Filter>
-    </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\hook.c">
-      <Filter>3rdparty\minihook\src</Filter>
-    </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\trampoline.c">
-      <Filter>3rdparty\minihook\src</Filter>
-    </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\hde\hde32.c">
+    <ClCompile Include="3rdparty\minihook\src\hde\hde64.cpp">
       <Filter>3rdparty\minihook\src\hde</Filter>
     </ClCompile>
-    <ClCompile Include="3rdparty\minihook\src\hde\hde64.c">
+    <ClCompile Include="3rdparty\minihook\src\buffer.cpp">
+      <Filter>3rdparty\minihook\src</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\minihook\src\hook.cpp">
+      <Filter>3rdparty\minihook\src</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\minihook\src\trampoline.cpp">
+      <Filter>3rdparty\minihook\src</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\minihook\src\hde\hde32.cpp">
       <Filter>3rdparty\minihook\src\hde</Filter>
     </ClCompile>
   </ItemGroup>

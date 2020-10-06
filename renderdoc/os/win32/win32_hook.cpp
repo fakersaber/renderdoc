@@ -39,8 +39,9 @@
 #include "os/os_specific.h"
 #include "strings/string_utils.h"
 
-#define VERBOSE_DEBUG_HOOK OPTION_OFF
-#define INLINE_HOOK OPTION_ON
+#define VERBOSE_DEBUG_HOOK OPTION_ON
+#define INLINE_HOOK OPTION_OFF
+#define GETPROCADDRESSHOOK OPTION_OFF
 
 #if ENABLED(INLINE_HOOK)
 typedef HMODULE(WINAPI *FunTypeLoadLibraryA)(LPCSTR lpLibFileName);
@@ -48,13 +49,15 @@ typedef HMODULE(WINAPI *FunTypeLoadLibraryW)(LPCWSTR lpLibFileName);
 typedef HMODULE(WINAPI *FunTypeLoadLibraryExA)(LPCSTR lpLibFileName, HANDLE fileHandle, DWORD flags);
 typedef HMODULE(WINAPI *FunTypeLoadLibraryExW)(LPCWSTR lpLibFileName, HANDLE fileHandle, DWORD flags);
 
-// typedef FARPROC(WINAPI *FunTypeGetProcAddress)(HMODULE mod, LPCSTR func);
+
+typedef FARPROC(WINAPI *FunTypeGetProcAddress)(HMODULE mod, LPCSTR func);
 
 FunTypeLoadLibraryA fLoadLibraryA;
 FunTypeLoadLibraryW fLoadLibraryW;
 FunTypeLoadLibraryExA fLoadLibraryExA;
 FunTypeLoadLibraryExW fLoadLibraryExW;
-// FunTypeGetProcAddress fGetProcAddress;
+
+FunTypeGetProcAddress fGetProcAddress = nullptr;
 #endif
 
 // map from address of IAT entry, to original contents
@@ -63,6 +66,7 @@ Threading::CriticalSection installedLock;
 
 std::map<void **, bool> s_InlineInstalledHooks;
 Threading::CriticalSection inlineInstalledLock;
+
 
 #if ENABLED(INLINE_HOOK)
 bool ApplyHookInline(FunctionHook &hook, void **IATentry, bool &already)
@@ -269,7 +273,18 @@ struct CachedHookData
           for(FunctionHook &hook : it->second.FunctionHooks)
           {
             if(hook.old_orig == NULL)
-              hook.old_orig = GetProcAddress(module, hook.function.c_str());
+            {
+                #if ENABLED(GETPROCADDRESSHOOK)
+                    if(fGetProcAddress){
+                        hook.old_orig = fGetProcAddress(module, hook.function.c_str());
+                    }else{
+                         hook.old_orig = GetProcAddress(module, hook.function.c_str());
+                    }    
+                #else
+                    hook.old_orig = GetProcAddress(module, hook.function.c_str());
+                #endif
+            }
+              
           }
 #else
           for(FunctionHook &hook : it->second.FunctionHooks)
@@ -322,7 +337,18 @@ struct CachedHookData
 #if ENABLED(INLINE_HOOK)
             for(FunctionHook &hook : it->second.FunctionHooks)
             {
+#if ENABLED(GETPROCADDRESSHOOK)
+              if(fGetProcAddress)
+              {
+                hook.old_orig = fGetProcAddress(module, hook.function.c_str());
+              }
+              else
+              {
+                hook.old_orig = GetProcAddress(module, hook.function.c_str());
+              }
+#else
               hook.old_orig = GetProcAddress(module, hook.function.c_str());
+#endif
             }
 #else
             // we also need to re-initialise the hooks as the orig pointers are now stale
@@ -352,7 +378,7 @@ struct CachedHookData
       return;
 #endif
 	// we need inline hook kernel32's LoadLibrary function.
-    if(/*!_stricmp(modName, "kernel32.dll") ||*/ !_stricmp(modName, "powrprof.dll") ||
+    if(/*!_stricmp(modName, "kernel32.dll") || */!_stricmp(modName, "powrprof.dll") ||
        !_stricmp(modName, "CoreMessaging.dll") || !_stricmp(modName, "opengl32.dll") ||
        !_stricmp(modName, "gdi32.dll") || !_stricmp(modName, "gdi32full.dll") ||
        !_stricmp(modName, "nvoglv32.dll") || !_stricmp(modName, "nvoglv64.dll") ||
@@ -397,6 +423,13 @@ struct CachedHookData
     // RDCDEBUG("=== import descriptors:");
 #endif
 
+#if ENABLED(VERBOSE_DEBUG_HOOK)
+   char testpath[1024] = {0};
+   GetModuleFileNameA(module, testpath, 1023);
+   RDCDEBUG("CurModule: %s, Module Name: %s", testpath, modName);
+#endif
+
+
 #if ENABLED(INLINE_HOOK)
     DllHookset *hookset = NULL;
 
@@ -439,7 +472,7 @@ struct CachedHookData
       const char *dllName = (const char *)(baseAddress + importDesc->Name);
 
 #if ENABLED(VERBOSE_DEBUG_HOOK)
-      // RDCDEBUG("found IAT for %s", dllName);
+       RDCDEBUG("found IAT for %s", dllName);
 #endif
 
       DllHookset *hookset = NULL;
@@ -455,7 +488,7 @@ struct CachedHookData
         IMAGE_THUNK_DATA *first = (IMAGE_THUNK_DATA *)(baseAddress + importDesc->FirstThunk);
 
 #if ENABLED(VERBOSE_DEBUG_HOOK)
-        // RDCDEBUG("Hooking imports for %s", dllName);
+         RDCDEBUG("Hooking imports for %s", dllName);
 #endif
 
         while(origFirst->u1.AddressOfData)
@@ -701,7 +734,20 @@ static void HookAllModules()
       for(FunctionHook &hook : it->second.FunctionHooks)
       {
         if(hook.old_orig == NULL)
+        {
+#if ENABLED(GETPROCADDRESSHOOK)
+          if(fGetProcAddress)
+          {
+            hook.old_orig = fGetProcAddress(it->second.module, hook.function.c_str());
+          }
+          else
+          {
+            hook.old_orig = GetProcAddress(it->second.module, hook.function.c_str());
+          }
+#else
           hook.old_orig = GetProcAddress(it->second.module, hook.function.c_str());
+#endif
+        }
       }
 #else
       // fetch all function hooks here, if we didn't above (perhaps because this library was
@@ -763,6 +809,12 @@ HMODULE WINAPI Hooked_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE fileHandle, DW
 
   SetLastError(S_OK);
 
+
+#if ENABLED(VERBOSE_DEBUG_HOOK)
+  RDCDEBUG("LoadLibraryEXA(%s)", lpLibFileName);
+  RDCDEBUG("LoadLibraryA Return Address: %p", _ReturnAddress());
+#endif
+
   // we can use the function naked, as when setting up the hook for LoadLibraryExA, our own module
   // was excluded from IAT patching
 #if ENABLED(INLINE_HOOK)
@@ -771,11 +823,12 @@ HMODULE WINAPI Hooked_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE fileHandle, DW
   HMODULE mod = LoadLibraryExA(lpLibFileName, fileHandle, flags);
 #endif
 
-#if ENABLED(VERBOSE_DEBUG_HOOK)
-  RDCDEBUG("LoadLibraryA(%s)", lpLibFileName);
-#endif
-
   DWORD err = GetLastError();
+
+#if ENABLED(VERBOSE_DEBUG_HOOK)
+  RDCDEBUG("LoadLibraryA dohook: %d, mod: %p, !IsAPISet(lpLibFileName): %d", dohook, mod,
+           !IsAPISet(lpLibFileName));
+#endif
 
   if(dohook && mod && !IsAPISet(lpLibFileName))
     HookAllModules();
@@ -798,6 +851,7 @@ HMODULE WINAPI Hooked_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE fileHandle, D
 
 #if ENABLED(VERBOSE_DEBUG_HOOK)
   RDCDEBUG("LoadLibraryW(%ls)", lpLibFileName);
+  RDCDEBUG("LoadLibraryW Call Return Address: %p", _ReturnAddress());
 #endif
 
   // we can use the function naked, as when setting up the hook for LoadLibraryExA, our own module
@@ -810,6 +864,11 @@ HMODULE WINAPI Hooked_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE fileHandle, D
 
   DWORD err = GetLastError();
 
+#if ENABLED(VERBOSE_DEBUG_HOOK)
+  RDCDEBUG("Name: %ls, dohook: %d, mod: %p, !IsAPISet(lpLibFileName): %d", lpLibFileName, dohook, mod,
+           !IsAPISet(lpLibFileName));
+#endif
+
   if(dohook && mod && !IsAPISet(lpLibFileName))
     HookAllModules();
 
@@ -820,6 +879,7 @@ HMODULE WINAPI Hooked_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE fileHandle, D
 
 HMODULE WINAPI Hooked_LoadLibraryA(LPCSTR lpLibFileName)
 {
+  RDCDEBUG("LoadLibraryA(%s)", lpLibFileName);
   return Hooked_LoadLibraryExA(lpLibFileName, NULL, 0);
 }
 
@@ -836,13 +896,27 @@ static bool OrdinalAsString(void *func)
 FARPROC WINAPI Hooked_GetProcAddress(HMODULE mod, LPCSTR func)
 {
   if(mod == NULL || func == NULL || mod == s_HookData->ownmodule)
+  {
+#if ENABLED(GETPROCADDRESSHOOK)
+    return fGetProcAddress(mod, func);
+#else
     return GetProcAddress(mod, func);
+#endif 
+  }
+
 
 #if ENABLED(VERBOSE_DEBUG_HOOK)
   if(OrdinalAsString((void *)func))
     RDCDEBUG("Hooked_GetProcAddress(%p, %p)", mod, func);
   else
+  {
+    char testpath[1024] = {0};
+    GetModuleFileNameA(mod, testpath, 1023);
+    RDCDEBUG("GetProcAddress form dll: %s", testpath);
     RDCDEBUG("Hooked_GetProcAddress(%p, %s)", mod, func);
+    RDCDEBUG("GetProcAddress Call Return Address: %p", _ReturnAddress());
+  }
+
 #endif
 
   for(auto it = s_HookData->DllHooks.begin(); it != s_HookData->DllHooks.end(); ++it)
@@ -850,13 +924,21 @@ FARPROC WINAPI Hooked_GetProcAddress(HMODULE mod, LPCSTR func)
     if(it->second.module == NULL)
     {
       it->second.module = GetModuleHandleA(it->first.c_str());
+
       if(it->second.module)
       {
 #if ENABLED(INLINE_HOOK)
         for(FunctionHook &hook : it->second.FunctionHooks)
         {
-          if(hook.old_orig == NULL)
-            hook.old_orig = GetProcAddress(it->second.module, hook.function.c_str());
+            if (hook.old_orig == NULL) 
+            {
+#if ENABLED(GETPROCADDRESSHOOK)
+              hook.old_orig = fGetProcAddress(it->second.module, hook.function.c_str());
+#else
+              hook.old_orig = GetProcAddress(it->second.module, hook.function.c_str());
+#endif 
+            }
+           
         }
 #else
         // fetch all function hooks here, since we want to fill out the original function pointer
@@ -880,6 +962,7 @@ FARPROC WINAPI Hooked_GetProcAddress(HMODULE mod, LPCSTR func)
       for(size_t i = 0; !match && i < it->second.altmodules.size(); i++)
         match = (mod == it->second.altmodules[i]);
     }
+
 
     if(match)
     {
@@ -928,10 +1011,14 @@ FARPROC WINAPI Hooked_GetProcAddress(HMODULE mod, LPCSTR func)
           std::lower_bound(it->second.FunctionHooks.begin(), it->second.FunctionHooks.end(), search);
       if(found != it->second.FunctionHooks.end() && !(search < *found))
       {
-        FARPROC realfunc = GetProcAddress(mod, func);
 
+#if ENABLED(GETPROCADDRESSHOOK)
+        FARPROC realfunc = fGetProcAddress(mod, func);
+#else
+        FARPROC realfunc = GetProcAddress(mod, func);
+#endif
 #if ENABLED(VERBOSE_DEBUG_HOOK)
-        RDCDEBUG("Found hooked function, returning hook pointer %p", found->hook);
+        RDCDEBUG("Found hooked function, returning hook pointer %p, realfunc: %p", found->hook, realfunc);
 #endif
 
         SetLastError(S_OK);
@@ -939,6 +1026,13 @@ FARPROC WINAPI Hooked_GetProcAddress(HMODULE mod, LPCSTR func)
         if(realfunc == NULL)
           return NULL;
 
+        //如果hook掉GetProcAddress要注意没有被inline hook的函数要直接返回源地址，即使模块被加载也不代表该模块会被hook
+#if ENABLED(GETPROCADDRESSHOOK)
+        if(*found->orig == NULL)
+        {
+          return realfunc;
+        }
+#endif
         return (FARPROC)found->hook;
       }
     }
@@ -950,7 +1044,11 @@ FARPROC WINAPI Hooked_GetProcAddress(HMODULE mod, LPCSTR func)
 
   SetLastError(S_OK);
 
+#if ENABLED(GETPROCADDRESSHOOK)
+  return fGetProcAddress(mod, func);
+#else
   return GetProcAddress(mod, func);
+#endif
 }
 
 void LibraryHooks::RegisterFunctionHook(const char *libraryName, const FunctionHook &hook)
@@ -996,8 +1094,11 @@ void LibraryHooks::BeginHookRegistration()
       "LoadLibraryExA", reinterpret_cast<void **>(&fLoadLibraryExA), &Hooked_LoadLibraryExA));
   s_HookData->DllHooks["kernel32.dll"].FunctionHooks.push_back(FunctionHook(
       "LoadLibraryExW", reinterpret_cast<void **>(&fLoadLibraryExW), &Hooked_LoadLibraryExW));
-  /*s_HookData->DllHooks["kernel32.dll"].FunctionHooks.push_back(
-      FunctionHook("GetProcAddress", NULL, &Hooked_GetProcAddress));*/
+
+#if ENABLED(GETPROCADDRESSHOOK)
+  s_HookData->DllHooks["kernel32.dll"].FunctionHooks.push_back(FunctionHook(
+      "GetProcAddress", reinterpret_cast<void **>(&fGetProcAddress), &Hooked_GetProcAddress));
+#endif
 
   for(const char *apiset :
       {"api-ms-win-core-libraryloader-l1-1-0.dll", "api-ms-win-core-libraryloader-l1-1-1.dll",
@@ -1012,8 +1113,11 @@ void LibraryHooks::BeginHookRegistration()
         "LoadLibraryExA", reinterpret_cast<void **>(&fLoadLibraryExA), &Hooked_LoadLibraryExA));
     s_HookData->DllHooks[apiset].FunctionHooks.push_back(FunctionHook(
         "LoadLibraryExW", reinterpret_cast<void **>(&fLoadLibraryExW), &Hooked_LoadLibraryExW));
-    /*s_HookData->DllHooks[apiset].FunctionHooks.push_back(
-        FunctionHook("GetProcAddress", NULL, &Hooked_GetProcAddress));*/
+
+//#if ENABLED(GETPROCADDRESSHOOK)
+//    s_HookData->DllHooks[apiset].FunctionHooks.push_back(
+//        FunctionHook("GetProcAddress",reinterpret_cast<void **>(&fGetProcAddress), &Hooked_GetProcAddress));
+//#endif
   }
 #else
   s_HookData = new CachedHookData;
@@ -1077,6 +1181,9 @@ void LibraryHooks::EndHookRegistration()
 
     s_HookData->missedOrdinals = false;
   }
+
+    RDCLOG("Hooked_LoadLibraryExA: %p", Hooked_LoadLibraryExA);
+    RDCLOG("Hooked_GetProcAddress: %p", Hooked_GetProcAddress);
 }
 
 void LibraryHooks::Refresh()
