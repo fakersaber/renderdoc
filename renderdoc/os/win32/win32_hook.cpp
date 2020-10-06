@@ -40,7 +40,7 @@
 #include "strings/string_utils.h"
 
 #define VERBOSE_DEBUG_HOOK OPTION_ON
-#define INLINE_HOOK OPTION_OFF
+#define INLINE_HOOK OPTION_ON
 #define GETPROCADDRESSHOOK OPTION_OFF
 
 #if ENABLED(INLINE_HOOK)
