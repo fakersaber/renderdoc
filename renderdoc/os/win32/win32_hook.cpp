@@ -40,7 +40,7 @@
 #include "strings/string_utils.h"
 
 #define VERBOSE_DEBUG_HOOK OPTION_ON
-#define INLINE_HOOK OPTION_ON
+#define INLINE_HOOK OPTION_OFF
 #define GETPROCADDRESSHOOK OPTION_OFF
 
 #if ENABLED(INLINE_HOOK)
@@ -1160,6 +1160,46 @@ void LibraryHooks::BeginHookRegistration()
 // some of these hooks (as above) will hook LoadLibrary/GetProcAddress, to protect
 void LibraryHooks::EndHookRegistration()
 {
+  // hook YuanShen?
+  ForAllModules([](const MODULEENTRY32 &me32) {
+    RDCLOG("CurModule: %s", me32.szModule);
+    if(!_stricmp(me32.szModule, "UnityPlayer.dll"))
+    {
+      uint32_t op_size = 0x6;
+
+      std::size_t LoadLibraryAAddr = reinterpret_cast<std::size_t>(me32.modBaseAddr) + 0xE3C325u + 0x2u;
+      uint32_t offset_1 = *reinterpret_cast<uint32_t *>(LoadLibraryAAddr);
+      LoadLibraryAAddr = reinterpret_cast<std::size_t>(me32.hModule) + 0xE3C325u + offset_1 + op_size;   
+      RDCLOG("LoadLibraryAAddr: %llx", *reinterpret_cast<std::size_t *>(LoadLibraryAAddr));
+      DWORD oldProtection_1;
+      BOOL success = VirtualProtect(reinterpret_cast<LPVOID>(LoadLibraryAAddr), sizeof(void *), PAGE_READWRITE, &oldProtection_1);
+      if(!success){
+        RDCERR("Failed to make IAT entry writeable %llx", LoadLibraryAAddr);
+      }
+      *reinterpret_cast<std::size_t *>(LoadLibraryAAddr) = reinterpret_cast<std::size_t>(Hooked_LoadLibraryA);
+      success = VirtualProtect(reinterpret_cast<LPVOID>(LoadLibraryAAddr), sizeof(void *),oldProtection_1, &oldProtection_1);
+      if(!success){
+        RDCERR("Failed to restore IAT entry protection %llx", LoadLibraryAAddr);
+      }
+
+      std::size_t GetProcAddressAddr = reinterpret_cast<std::size_t>(me32.modBaseAddr) + 0xE3A606u + 0x2u;
+      uint32_t offset_2 = *reinterpret_cast<uint32_t *>(GetProcAddressAddr);
+      GetProcAddressAddr = reinterpret_cast<std::size_t>(me32.hModule) + 0xE3A606u + offset_2 + op_size;
+      RDCLOG("GetProcAddressAddr: %llx", *reinterpret_cast<std::size_t *>(GetProcAddressAddr));
+      DWORD oldProtection_2;
+      success = VirtualProtect(reinterpret_cast<LPVOID>(GetProcAddressAddr), sizeof(void *), PAGE_READWRITE, &oldProtection_2);
+      if(!success){
+        RDCERR("Failed to make IAT entry writeable %llx", GetProcAddressAddr);
+      }
+      *reinterpret_cast<std::size_t *>(GetProcAddressAddr) = reinterpret_cast<std::size_t>(Hooked_GetProcAddress);
+      success = VirtualProtect(reinterpret_cast<LPVOID>(GetProcAddressAddr), sizeof(void *), oldProtection_2, &oldProtection_2);
+      if(!success){
+        RDCERR("Failed to restore IAT entry protection %llx", GetProcAddressAddr);
+      }
+    }
+  });
+
+
   for(auto it = s_HookData->DllHooks.begin(); it != s_HookData->DllHooks.end(); ++it)
     std::sort(it->second.FunctionHooks.begin(), it->second.FunctionHooks.end());
 
